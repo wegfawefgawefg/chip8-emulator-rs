@@ -1,6 +1,7 @@
 # chip8-emulator-rs
-<!-- Archival note: Work on this project started on 2023-10-31 (initial commit). -->
-Rust port of the newer `chip8-emulator-python` project layout and core emulator behavior.
+Rust port of the newer `chip8-emulator-python` project layout and core emulator behavior. Work on this project started on 2023-10-31 (initial commit).
+
+![CHIP-8 emulator screenshot](image.png)
 
 ## Project Layout
 - `src/chip8_emulator/`: emulator source code
