@@ -3,7 +3,10 @@ name = "chip8-emulator-rs"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-log = "0.4.20"
+clap = { version = "4.5.32", features = ["derive"] }
+rand = "0.8.5"
+raylib = "5.5.1"
+
+[dev-dependencies]
+tempfile = "3.13.0"
