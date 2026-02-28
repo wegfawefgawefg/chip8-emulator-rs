@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::chip8_emulator::config::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::chip8_emulator::config::{MEMORY_SIZE, SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::chip8_emulator::cpu::{execute_cycle, tick_timers};
 use crate::chip8_emulator::error::Chip8Error;
 use crate::chip8_emulator::quirks::Chip8Quirks;
@@ -93,6 +93,8 @@ pub fn run_emulator_app(
     let mut timer_accumulated_time = 0.0f32;
     let mut front_buffer = state.screen_buffer;
     let mut previous_tick = Instant::now();
+    let mut frame_in_progress_after_clear = false;
+    let mut has_draw_since_clear = false;
 
     while !rl.window_should_close() && !state.exited {
         if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
@@ -114,9 +116,36 @@ pub fn run_emulator_app(
             && cycles_run < max_cycles_per_frame
             && !state.exited
         {
+            // For CLS-framed ROMs (like snake), publish the completed frame right before
+            // the next clear starts the next frame.
+            if state.pc <= (MEMORY_SIZE - 2) {
+                let next_opcode =
+                    ((state.memory[state.pc] as u16) << 8) | state.memory[state.pc + 1] as u16;
+                if next_opcode == 0x00E0 && has_draw_since_clear {
+                    front_buffer = state.screen_buffer;
+                    has_draw_since_clear = false;
+                }
+            }
+
+            let pc_before = state.pc;
             execute_cycle(&mut state, quirks)?;
+            if state.op == 0x00E0 {
+                frame_in_progress_after_clear = true;
+                has_draw_since_clear = false;
+            }
             if (state.op & 0xF000) == 0xD000 {
+                if frame_in_progress_after_clear {
+                    has_draw_since_clear = true;
+                } else {
+                    // ROMs that don't use CLS still update smoothly.
+                    front_buffer = state.screen_buffer;
+                }
+            }
+            // If ROM blocks on LD Vx, K after drawing a frame (title screens),
+            // publish what we have even without a subsequent CLS boundary.
+            if (state.op & 0xF0FF) == 0xF00A && state.pc == pc_before && has_draw_since_clear {
                 front_buffer = state.screen_buffer;
+                has_draw_since_clear = false;
             }
             accumulated_time -= cycle_interval;
             cycles_run += 1;
